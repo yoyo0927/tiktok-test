@@ -14,8 +14,8 @@ export const defaultTuning = {
   fireworkPetals: 120,
   fireworkPetalWidth: 100,
   fireworkTrail: 515,
-  reboundStarSize: 100,
-  reboundStarCount: 7,
+  reboundStarSize: 200,
+  reboundStarCount: 4,
   smileSensitivity: 60,
   laughSensitivity: 82,
 }

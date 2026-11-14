@@ -139,7 +139,7 @@ test('collidable spokes and sparks originate at the visible bloom and scatter on
   assert.ok(engine.impacts > 0)
 })
 
-test('an impacting petal emits seven stars when only the immediate head edge is masked', () => {
+test('an impacting petal emits four stars by default when only the immediate head edge is masked', () => {
   const engine = new ParticleEngine()
   const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
   engine.burst(head, 360, 480, quality.full, defaultTuning)
@@ -152,7 +152,7 @@ test('an impacting petal emits seven stars when only the immediate head edge is 
   const update = () => engine.update(1 / 30, 360, 480, 'neutral', head, quality.full, defaultTuning, [], foreground)
   update()
   assert.equal(engine.impacts, 1)
-  assert.equal(engine.count, 7)
+  assert.equal(engine.count, 4)
   assert.ok(engine.pool.slice(0, engine.count).every(p => p.kind === 'contactStar' && p.palette === palette
     && Math.abs(p.x - 147.5) < 0.001 && p.y === 160 && p.vx < 0
     && p.radius <= 3.9 && p.life >= 0.40 && p.life <= 0.58))
@@ -214,7 +214,7 @@ test('the head mask reflects particles from hair outside the ellipse and rejects
     engine.update(1 / 30, 360, 480, 'neutral', head, quality.full, defaultTuning, [], foreground, foreground)
     assert.equal(engine.impacts, Number(hits))
     if (hits) {
-      assert.equal(engine.count, 7)
+      assert.equal(engine.count, 4)
       assert(engine.pool.slice(0, engine.count).every(p => p.kind === 'contactStar' && p.x > 134 && p.x < 135 && p.vx < 0))
     }
   }
