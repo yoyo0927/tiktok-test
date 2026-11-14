@@ -404,9 +404,13 @@ export class Renderer {
       if (p.kind === 'streamer') drawStreamer(ctx, p)
       else if (p.kind === 'shape') drawShape(ctx, p)
     }
-    // The soft face padding keeps trails clear. Contact stars start at the actual edge.
-    const hasEffects = engine.count > 0 || engine.blooms.length > 0
-    if (hasEffects && head) clearFace(ctx, head)
+    if (engine.count > 0 || engine.blooms.length > 0) {
+      if (!person?.erase(ctx, this.width, this.height, video, mirrored)) clearEstimatedBody(ctx, body)
+      if (head) clearFace(ctx, head)
+    }
+
+    // Collision feedback sits above the body mask and is clipped to the head's true edge.
+    let clipped = false
     for (let i = 0; i < engine.count; i++) {
       const p = engine.pool[i]
       if (p.kind !== 'contactStar') continue
@@ -420,14 +424,21 @@ export class Renderer {
         opacity *= Math.max(0, Math.min(1, edgeDistance / 2.5))
       }
       if (opacity < 0.01) continue
+      if (head && !clipped) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, 0, this.width, this.height)
+        ctx.moveTo(head.x + head.rx * head.cos, head.y + head.rx * head.sin)
+        ctx.ellipse(head.x, head.y, head.rx, head.ry, head.angle, 0, Math.PI * 2)
+        ctx.clip('evenodd')
+        clipped = true
+      }
       drawGlow(ctx, this.fireworkGlows[p.palette], p.x, p.y, p.radius * 2.5, opacity * 0.52)
       ctx.globalAlpha = opacity
       ctx.fillStyle = fireworkColors[p.palette].tip
       drawStar(ctx, p.x, p.y, p.radius * (1 - t * 0.35), p.rotation)
     }
-    if (hasEffects) {
-      if (!person?.erase(ctx, this.width, this.height, video, mirrored)) clearEstimatedBody(ctx, body)
-    }
+    if (clipped) ctx.restore()
     ctx.globalAlpha = 1
     if (debug && head) {
       ctx.lineWidth = 1.5
