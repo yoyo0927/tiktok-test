@@ -1,5 +1,5 @@
-import { collideWithHead } from './collision.ts'
-import type { Body } from './collision.ts'
+import { collideWithHead, collideWithHeadSilhouette } from './collision.ts'
+import type { Body, Foreground } from './collision.ts'
 import type { Ellipse, MovingHead, Point } from './geometry.ts'
 import type { Expression } from './expression.ts'
 import type { Quality } from './performance.ts'
@@ -54,7 +54,6 @@ const TAU = Math.PI * 2
 const random = (min: number, max: number) => min + Math.random() * (max - min)
 
 interface Bloom extends Point { radius: number; age: number; order: number; palette: number; accentPalette: number; delay: number }
-type Foreground = (x: number, y: number) => boolean
 
 function faceClearance(x: number, y: number, head: Ellipse, padding: number) {
   const dx = x - head.x
@@ -301,7 +300,7 @@ export class ParticleEngine {
   }
 
   update(dt: number, width: number, height: number, state: Expression, head: MovingHead | null, quality: Quality, tuning: Tuning,
-    body = estimateBody(head, height), foreground?: Foreground) {
+    body = estimateBody(head, height), foreground?: Foreground, headSilhouette?: Foreground) {
     const fireworks = state === 'laugh' || this.blooms.length > 0 || this.count > this.rainCount + this.bokehCount
     const target = state === 'smile' && !fireworks ? 1 : 0
     this.rainVisibility = fireworks ? Math.max(0, this.rainVisibility - dt / 0.12)
@@ -394,7 +393,9 @@ export class ParticleEngine {
         p.vy = p.vy * drag + p.gravity * dt
         p.x += p.vx * dt
         p.y += p.vy * dt
-        if (p.collidable && head && collideWithHead(p, px, py, head, this.headContact, isOccluded)) {
+        if (p.collidable && head && (headSilhouette
+          ? collideWithHeadSilhouette(p, px, py, head, this.headContact, headSilhouette)
+          : collideWithHead(p, px, py, head, this.headContact, isOccluded))) {
           const { palette, kind } = p
           const speed = Math.max(66, Math.min(144, Math.hypot(p.vx - head.vx, p.vy - head.vy) * 0.46))
           this.impacts++

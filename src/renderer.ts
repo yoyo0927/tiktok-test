@@ -287,7 +287,7 @@ export class Renderer {
   }
 
   draw(engine: ParticleEngine, head: MovingHead | null, debug: boolean, quality: Quality, tuning: Tuning,
-    body: BodyRegion, person: PersonMask | null, video: HTMLVideoElement, mirrored: boolean) {
+    body: BodyRegion, person: PersonMask | null, video: HTMLVideoElement, mirrored: boolean, useHeadSilhouette = false) {
     const ctx = this.ctx
     ctx.clearRect(0, 0, this.width, this.height)
     ctx.lineCap = 'round'
@@ -404,32 +404,34 @@ export class Renderer {
       if (p.kind === 'streamer') drawStreamer(ctx, p)
       else if (p.kind === 'shape') drawShape(ctx, p)
     }
-    if (engine.count > 0 || engine.blooms.length > 0) {
+    const hasEffects = engine.count > 0 || engine.blooms.length > 0
+    if (hasEffects && !useHeadSilhouette) {
       if (!person?.erase(ctx, this.width, this.height, video, mirrored)) clearEstimatedBody(ctx, body)
       if (head) clearFace(ctx, head)
     }
 
-    // Collision feedback sits above the body mask and is clipped to the head's true edge.
+    // With a head silhouette, the same mask clips the incoming sparks and the rebound.
+    const ellipse = useHeadSilhouette ? null : head
     let clipped = false
     for (let i = 0; i < engine.count; i++) {
       const p = engine.pool[i]
       if (p.kind !== 'contactStar') continue
       const t = p.age / p.life
       let opacity = (1 - t) ** 1.15
-      if (head) {
-        const dx = p.x - head.x
-        const dy = p.y - head.y
-        const distance = Math.hypot((head.cos * dx + head.sin * dy) / head.rx, (-head.sin * dx + head.cos * dy) / head.ry)
-        const edgeDistance = (distance - 1) * Math.min(head.rx, head.ry)
+      if (ellipse) {
+        const dx = p.x - ellipse.x
+        const dy = p.y - ellipse.y
+        const distance = Math.hypot((ellipse.cos * dx + ellipse.sin * dy) / ellipse.rx, (-ellipse.sin * dx + ellipse.cos * dy) / ellipse.ry)
+        const edgeDistance = (distance - 1) * Math.min(ellipse.rx, ellipse.ry)
         opacity *= Math.max(0, Math.min(1, edgeDistance / 2.5))
       }
       if (opacity < 0.01) continue
-      if (head && !clipped) {
+      if (ellipse && !clipped) {
         ctx.save()
         ctx.beginPath()
         ctx.rect(0, 0, this.width, this.height)
-        ctx.moveTo(head.x + head.rx * head.cos, head.y + head.rx * head.sin)
-        ctx.ellipse(head.x, head.y, head.rx, head.ry, head.angle, 0, Math.PI * 2)
+        ctx.moveTo(ellipse.x + ellipse.rx * ellipse.cos, ellipse.y + ellipse.rx * ellipse.sin)
+        ctx.ellipse(ellipse.x, ellipse.y, ellipse.rx, ellipse.ry, ellipse.angle, 0, Math.PI * 2)
         ctx.clip('evenodd')
         clipped = true
       }
@@ -439,6 +441,7 @@ export class Renderer {
       drawStar(ctx, p.x, p.y, p.radius * (1 - t * 0.35), p.rotation)
     }
     if (clipped) ctx.restore()
+    if (hasEffects && useHeadSilhouette) person?.erase(ctx, this.width, this.height, video, mirrored)
     ctx.globalAlpha = 1
     if (debug && head) {
       ctx.lineWidth = 1.5

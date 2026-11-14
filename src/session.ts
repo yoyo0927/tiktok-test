@@ -144,6 +144,7 @@ export function runSession(
       const freshPose = now - lastPose < Math.max(420, poseInterval + 120)
       const body = projectBody(freshPose ? bodyPoints : undefined, width, height, video, mirrored, head)
       const foreground = freshPose ? person?.project(width, height, video, mirrored) : undefined
+      const headSilhouette = head && foreground?.(head.x, head.y) ? foreground : undefined
       if (burst || pendingPreview && width > 0 && height > 0) {
         pendingPreview = false
         if (now - lastBurst >= 850 && width > 0 && height > 0) {
@@ -152,8 +153,8 @@ export function runSession(
         }
       }
       const state = previewRain && expression.state === 'neutral' ? 'smile' : expression.state
-      engine.update(dt, width, height, state, head, settings, tuning, body, foreground)
-      renderer.draw(engine, head, debug(), settings, tuning, body, freshPose ? person : null, video, mirrored)
+      engine.update(dt, width, height, state, head, settings, tuning, body, foreground, headSilhouette)
+      renderer.draw(engine, head, debug(), settings, tuning, body, freshPose ? person : null, video, mirrored, Boolean(headSilhouette))
 
       if (now - lastPublish >= 200) {
         lastPublish = now

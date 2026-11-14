@@ -5,10 +5,76 @@ export interface Body {
 }
 
 export interface HeadContact { x: number; y: number; nx: number; ny: number }
+export type Foreground = (x: number, y: number) => boolean
+const headConnectionSamples = [0.22, 0.45, 0.70]
+
+function reflect(body: Body, nx: number, ny: number, approach: number) {
+  const impulse = Math.max(26, -0.78 * approach) - approach
+  body.vx += impulse * nx
+  body.vy += impulse * ny
+}
+
+export function collideWithHeadSilhouette(body: Body, previousX: number, previousY: number, head: MovingHead,
+  contact: HeadContact, foreground: Foreground): boolean {
+  // The person mask also contains shoulders and limbs. Use face landmarks to bound the head region.
+  const bound = Math.hypot(head.rx * 1.65, head.ry * 1.45)
+  if (Math.min(previousX, body.x) > head.x + bound || Math.max(previousX, body.x) < head.x - bound
+    || Math.min(previousY, body.y) > head.y + bound || Math.max(previousY, body.y) < head.y - bound) return false
+
+  const dx = body.x - previousX
+  const dy = body.y - previousY
+  const distance = Math.hypot(dx, dy)
+  if (distance < 0.01 || foreground(previousX, previousY)) return false
+  const steps = Math.min(96, Math.ceil(distance / 2))
+  let step = 1
+  for (; step <= steps; step++) {
+    if (foreground(previousX + dx * step / steps, previousY + dy * step / steps)) break
+  }
+  if (step > steps) return false
+
+  let outside = (step - 1) / steps
+  let inside = step / steps
+  for (let i = 0; i < 5; i++) {
+    const middle = (inside + outside) / 2
+    if (foreground(previousX + dx * middle, previousY + dy * middle)) inside = middle
+    else outside = middle
+  }
+  const x = previousX + dx * inside
+  const y = previousY + dy * inside
+  const offsetX = x - head.x
+  const offsetY = y - head.y
+  const localX = head.cos * offsetX + head.sin * offsetY
+  const localY = -head.sin * offsetX + head.cos * offsetY
+  const maxSide = head.rx * (localY > head.ry * 0.6 ? 1.2 : 1.65)
+  if (Math.abs(localX) > maxSide || localY < -head.ry * 1.45 || localY > head.ry) return false
+
+  // Reject nearby detached foreground, such as a hand separated from the head by background.
+  for (const fraction of headConnectionSamples) {
+    if (!foreground(x - offsetX * fraction, y - offsetY * fraction)) return false
+  }
+  let nx = Number(foreground(x - 3, y)) - Number(foreground(x + 3, y))
+  let ny = Number(foreground(x, y - 3)) - Number(foreground(x, y + 3))
+  const length = Math.hypot(nx, ny)
+  if (length && -(nx * dx + ny * dy) > distance * length * 0.25) {
+    nx /= length
+    ny /= length
+  } else {
+    nx = -dx / distance
+    ny = -dy / distance
+  }
+  const approach = (body.vx - head.vx) * nx + (body.vy - head.vy) * ny
+  if (approach >= -1) return false
+  reflect(body, nx, ny, approach)
+  contact.x = previousX + dx * outside
+  contact.y = previousY + dy * outside
+  contact.nx = nx
+  contact.ny = ny
+  return true
+}
 
 // Sweep in the moving ellipse's frame so a fast particle cannot cross its boundary unnoticed.
 export function collideWithHead(body: Body, previousX: number, previousY: number, head: MovingHead,
-  contact?: HeadContact, isOccluded?: (x: number, y: number) => boolean): boolean {
+  contact?: HeadContact, isOccluded?: Foreground): boolean {
   const startX = previousX - head.x + head.dx
   const startY = previousY - head.y + head.dy
   const endX = body.x - head.x
@@ -67,9 +133,7 @@ export function collideWithHead(body: Body, previousX: number, previousY: number
   }
   body.x = boundaryX + nx * 0.7
   body.y = boundaryY + ny * 0.7
-  const impulse = Math.max(26, -0.78 * approach) - approach
-  body.vx += impulse * nx
-  body.vy += impulse * ny
+  reflect(body, nx, ny, approach)
   if (contact) {
     contact.x = head.x + cos * ux * head.rx - sin * uy * head.ry
     contact.y = head.y + sin * ux * head.rx + cos * uy * head.ry

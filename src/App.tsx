@@ -185,7 +185,7 @@ export function App() {
         <div className="settings">
         <section className="debug" aria-label="调试数据">
           <div className="debug-top">
-            <p>开启摄像头后，青色虚线标出头部。花瓣撞到轮廓时会散成几颗小星。</p>
+            <p>青色虚线标出人脸追踪范围。花瓣碰到头发或脸部轮廓时会弹出小星。</p>
             <div className="preview-actions">
               <button aria-pressed={previewRain} disabled={loading} onClick={() => preview('rain')}>预览星雨</button>
               <button disabled={loading} onClick={() => preview('fireworks')}>试放烟花</button>

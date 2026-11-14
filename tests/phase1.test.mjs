@@ -183,6 +183,26 @@ test('petals hidden by hair or a shoulder before reaching the head do not regist
   }
 })
 
+test('the head mask reflects particles from hair outside the ellipse and rejects shoulder and detached foreground', () => {
+  const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
+  const foreground = (x, y) => (x >= 137 && x <= 212 && y >= 96 && y <= 204)
+    || (x >= 120 && x <= 250 && y >= 212 && y <= 290)
+    || (x >= 121 && x <= 129 && y >= 149 && y <= 168)
+  for (const [x, y, hits] of [[132, 160, true], [110, 160, false], [110, 221, false], [142, 160, false]]) {
+    const engine = new ParticleEngine()
+    engine.burst(head, 360, 480, quality.full, defaultTuning)
+    Object.assign(engine.pool[0], { x, y, vx: 1150, vy: 0, gravity: 0, radius: 1 })
+    engine.count = 1
+    engine.blooms.length = 0
+    engine.update(1 / 30, 360, 480, 'neutral', head, quality.full, defaultTuning, [], foreground, foreground)
+    assert.equal(engine.impacts, Number(hits))
+    if (hits) {
+      assert.equal(engine.count, 7)
+      assert(engine.pool.slice(0, engine.count).every(p => p.kind === 'contactStar' && p.x > 134 && p.x < 135 && p.vx < 0))
+    }
+  }
+})
+
 test('a fading petal spawns a single brief flash at the oldest visible trail sample', () => {
   const engine = new ParticleEngine()
   const tuning = { ...defaultTuning, fireworkTrail: 120 }
