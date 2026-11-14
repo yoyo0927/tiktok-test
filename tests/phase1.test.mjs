@@ -139,7 +139,7 @@ test('collidable spokes and sparks originate at the visible bloom and scatter on
   assert.ok(engine.impacts > 0)
 })
 
-test('an impacting petal is replaced by seven stars moving away from the head', () => {
+test('an impacting petal emits seven stars at the head edge even when the mask extends past it', () => {
   const engine = new ParticleEngine()
   const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
   engine.burst(head, 360, 480, quality.full, defaultTuning)
@@ -154,7 +154,8 @@ test('an impacting petal is replaced by seven stars moving away from the head', 
   assert.equal(engine.impacts, 1)
   assert.equal(engine.count, 7)
   assert.ok(engine.pool.slice(0, engine.count).every(p => p.kind === 'contactStar' && p.palette === palette
-    && p.x <= 124 && p.vx < 0 && p.radius <= 3.9 && p.life >= 0.40 && p.life <= 0.58))
+    && Math.abs(p.x - 147.5) < 0.001 && p.y === 160 && p.vx < 0
+    && p.radius <= 3.9 && p.life >= 0.40 && p.life <= 0.58))
   const start = engine.pool[0].x
   update()
   assert.ok(engine.pool[0].x < start)

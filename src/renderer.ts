@@ -404,6 +404,9 @@ export class Renderer {
       if (p.kind === 'streamer') drawStreamer(ctx, p)
       else if (p.kind === 'shape') drawShape(ctx, p)
     }
+    // The soft face padding keeps trails clear. Contact stars start at the actual edge.
+    const hasEffects = engine.count > 0 || engine.blooms.length > 0
+    if (hasEffects && head) clearFace(ctx, head)
     for (let i = 0; i < engine.count; i++) {
       const p = engine.pool[i]
       if (p.kind !== 'contactStar') continue
@@ -413,7 +416,8 @@ export class Renderer {
         const dx = p.x - head.x
         const dy = p.y - head.y
         const distance = Math.hypot((head.cos * dx + head.sin * dy) / head.rx, (-head.sin * dx + head.cos * dy) / head.ry)
-        opacity *= Math.max(0, Math.min(1, (distance - 1) * 16))
+        const edgeDistance = (distance - 1) * Math.min(head.rx, head.ry)
+        opacity *= Math.max(0, Math.min(1, edgeDistance / 2.5))
       }
       if (opacity < 0.01) continue
       drawGlow(ctx, this.fireworkGlows[p.palette], p.x, p.y, p.radius * 2.5, opacity * 0.52)
@@ -421,9 +425,8 @@ export class Renderer {
       ctx.fillStyle = fireworkColors[p.palette].tip
       drawStar(ctx, p.x, p.y, p.radius * (1 - t * 0.35), p.rotation)
     }
-    if (engine.count > 0 || engine.blooms.length > 0) {
+    if (hasEffects) {
       if (!person?.erase(ctx, this.width, this.height, video, mirrored)) clearEstimatedBody(ctx, body)
-      if (head) clearFace(ctx, head)
     }
     ctx.globalAlpha = 1
     if (debug && head) {

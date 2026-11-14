@@ -130,7 +130,7 @@ export class ParticleEngine {
   private bokehBudget = 0
   private contactStars = 0
   private tailBursts = 0
-  private contactNormal = { x: 0, y: 0 }
+  private headContact = { x: 0, y: 0, nx: 0, ny: 0 }
 
   private spawn(kind: ParticleKind, x: number, y: number, vx: number, vy: number, life: number, radius: number, palette: number, collidable = false) {
     if (this.count >= CAPACITY) return null
@@ -157,24 +157,14 @@ export class ParticleEngine {
     return p
   }
 
-  private scatterContact(x: number, y: number, palette: number, reflectedSpeed: number, amount: number,
-    head: MovingHead, body: BodyRegion, foreground?: Foreground) {
-    const normal = this.contactNormal
-    const angle = Math.atan2(normal.y, normal.x)
-    const facePadding = 9 + Math.min(12, Math.hypot(head.vx, head.vy) * 0.035)
-    let offset = 8
-    for (; offset < 56; offset += 4) {
-      const px = x + normal.x * offset
-      const py = y + normal.y * offset
-      if (faceClearance(px, py, head, facePadding) < 1.19) continue
-      if (foreground ? foreground(px, py) : bodyClearance(px, py, body) < 4) continue
-      break
-    }
+  private scatterContact(palette: number, reflectedSpeed: number, amount: number) {
+    const { x, y, nx, ny } = this.headContact
+    const angle = Math.atan2(ny, nx)
     for (let i = 0; i < amount && this.contactStars < 96; i++) {
       const spread = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? -1 : 1)
       const direction = angle + spread * 0.32 + random(-0.09, 0.09)
       const speed = reflectedSpeed * random(0.68, 1.18)
-      const star = this.spawn('contactStar', x + normal.x * offset, y + normal.y * offset,
+      const star = this.spawn('contactStar', x + nx * 2.5, y + ny * 2.5,
         Math.cos(direction) * speed, Math.sin(direction) * speed,
         random(0.40, 0.58), random(2.5, 3.9), palette)
       if (!star) break
@@ -403,12 +393,12 @@ export class ParticleEngine {
         p.vy = p.vy * drag + p.gravity * dt
         p.x += p.vx * dt
         p.y += p.vy * dt
-        if (p.collidable && head && collideWithHead(p, px, py, head, this.contactNormal)) {
-          const { x, y, palette, kind } = p
+        if (p.collidable && head && collideWithHead(p, px, py, head, this.headContact)) {
+          const { palette, kind } = p
           const speed = Math.max(66, Math.min(144, Math.hypot(p.vx - head.vx, p.vy - head.vy) * 0.46))
           this.impacts++
           this.remove(i)
-          this.scatterContact(x, y, palette, speed, kind === 'ray' ? (quality.rayScale < 1 ? 5 : 7) : 2, head, body, foreground)
+          this.scatterContact(palette, speed, kind === 'ray' ? (quality.rayScale < 1 ? 5 : 7) : 2)
           continue
         }
         p.sampleAge += dt

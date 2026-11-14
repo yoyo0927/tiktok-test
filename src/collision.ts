@@ -4,10 +4,10 @@ export interface Body {
   x: number; y: number; vx: number; vy: number; radius: number
 }
 
-export interface ContactNormal { x: number; y: number }
+export interface HeadContact { x: number; y: number; nx: number; ny: number }
 
 // Sweep in the moving ellipse's frame so a fast particle cannot cross its boundary unnoticed.
-export function collideWithHead(body: Body, previousX: number, previousY: number, head: MovingHead, normal?: ContactNormal): boolean {
+export function collideWithHead(body: Body, previousX: number, previousY: number, head: MovingHead, contact?: HeadContact): boolean {
   const startX = previousX - head.x + head.dx
   const startY = previousY - head.y + head.dy
   const endX = body.x - head.x
@@ -57,9 +57,11 @@ export function collideWithHead(body: Body, previousX: number, previousY: number
   const impulse = Math.max(26, -0.78 * approach) - approach
   body.vx += impulse * nx
   body.vy += impulse * ny
-  if (normal) {
-    normal.x = nx
-    normal.y = ny
+  if (contact) {
+    contact.x = head.x + cos * ux * head.rx - sin * uy * head.ry
+    contact.y = head.y + sin * ux * head.rx + cos * uy * head.ry
+    contact.nx = nx
+    contact.ny = ny
   }
   return true
 }
