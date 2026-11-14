@@ -163,6 +163,23 @@ test('an impacting petal emits seven stars when only the immediate head edge is 
   assert.equal(engine.count, 0)
 })
 
+test('rebound star count applies to the next collision and respects the quality tier', () => {
+  const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
+  for (const [count, settings, expected] of [[0, quality.full, 0], [14, quality.full, 14], [14, quality.reduced, 10]]) {
+    const engine = new ParticleEngine()
+    engine.burst(head, 360, 480, quality.full, defaultTuning)
+    Object.assign(engine.pool[0], { x: 144, y: 160, vx: 350, vy: 0, gravity: 0, radius: 1 })
+    engine.count = 1
+    engine.blooms.length = 0
+
+    engine.update(1 / 30, 360, 480, 'neutral', head, settings, { ...defaultTuning, reboundStarCount: count })
+
+    assert.equal(engine.impacts, 1)
+    assert.equal(engine.count, expected)
+    assert(engine.pool.slice(0, engine.count).every(p => p.kind === 'contactStar' && p.vx < 0))
+  }
+})
+
 test('petals hidden by hair or a shoulder before reaching the head do not register a hit', () => {
   const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
   const shoulder = [{ from: { x: 135, y: 160 }, to: { x: 135, y: 250 }, radius: 15 }]

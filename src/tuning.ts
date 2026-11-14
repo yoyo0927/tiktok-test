@@ -1,3 +1,8 @@
+export const reboundStarLimits = {
+  size: { min: 50, max: 200 },
+  count: { min: 0, max: 14 },
+}
+
 export const defaultTuning = {
   rainDensity: 110,
   rainSize: 5,
@@ -9,6 +14,8 @@ export const defaultTuning = {
   fireworkPetals: 120,
   fireworkPetalWidth: 100,
   fireworkTrail: 515,
+  reboundStarSize: 100,
+  reboundStarCount: 7,
   smileSensitivity: 60,
   laughSensitivity: 82,
 }
@@ -25,6 +32,9 @@ export function loadTuning(): Tuning {
       const value = stored?.[key]
       if (typeof value === 'number' && Number.isFinite(value)) tuning[key] = value
     }
+    const { size, count } = reboundStarLimits
+    tuning.reboundStarSize = Math.min(size.max, Math.max(size.min, tuning.reboundStarSize))
+    tuning.reboundStarCount = Math.round(Math.min(count.max, Math.max(count.min, tuning.reboundStarCount)))
     return tuning
   } catch {
     return defaultTuning

@@ -1,4 +1,4 @@
-import { defaultTuning } from './tuning.ts'
+import { defaultTuning, reboundStarLimits } from './tuning.ts'
 import type { Tuning } from './tuning.ts'
 
 interface Slider {
@@ -24,6 +24,8 @@ const sections: { label: string; sliders: Slider[] }[] = [
     { name: 'fireworkPetals', label: '主烟花花瓣数量', min: 24, max: 120, unit: ' 片' },
     { name: 'fireworkPetalWidth', label: '烟花花瓣粗细', min: 30, max: 135, unit: '%' },
     { name: 'fireworkTrail', label: '烟花拖尾', min: 100, max: 600, unit: ' ms' },
+    { name: 'reboundStarSize', label: '反弹小星大小', ...reboundStarLimits.size, unit: '%' },
+    { name: 'reboundStarCount', label: '反弹小星数量', ...reboundStarLimits.count, unit: ' 颗' },
   ] },
   { label: '表情', sliders: [
     { name: 'smileSensitivity', label: '微笑灵敏度', min: 20, max: 100, unit: '%' },
@@ -53,7 +55,7 @@ export function EffectControls({ tuning, onChange }: { tuning: Tuning; onChange:
           </fieldset>
         ))}
       </div>
-      <p>星雨方向为 0° 时垂直下落，负值向左。烟花大小和花瓣数量在下次试放时生效，性能降级时会减少花瓣。</p>
+      <p>星雨方向为 0° 时垂直下落，负值向左。烟花大小和花瓣数量在下次绽放时生效。反弹小星大小即时生效，数量按单次花瓣碰撞计算，性能降级时会减少。</p>
     </section>
   )
 }

@@ -412,6 +412,7 @@ export class Renderer {
 
     // With a head silhouette, the same mask clips the incoming sparks and the rebound.
     const ellipse = useHeadSilhouette ? null : head
+    const reboundSize = tuning.reboundStarSize / 100
     let clipped = false
     for (let i = 0; i < engine.count; i++) {
       const p = engine.pool[i]
@@ -435,10 +436,11 @@ export class Renderer {
         ctx.clip('evenodd')
         clipped = true
       }
-      drawGlow(ctx, this.fireworkGlows[p.palette], p.x, p.y, p.radius * 2.5, opacity * 0.52)
+      const radius = p.radius * reboundSize
+      drawGlow(ctx, this.fireworkGlows[p.palette], p.x, p.y, radius * 2.5, opacity * 0.52)
       ctx.globalAlpha = opacity
       ctx.fillStyle = fireworkColors[p.palette].tip
-      drawStar(ctx, p.x, p.y, p.radius * (1 - t * 0.35), p.rotation)
+      drawStar(ctx, p.x, p.y, radius * (1 - t * 0.35), p.rotation)
     }
     if (clipped) ctx.restore()
     if (hasEffects && useHeadSilhouette) person?.erase(ctx, this.width, this.height, video, mirrored)

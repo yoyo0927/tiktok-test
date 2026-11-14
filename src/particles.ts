@@ -159,9 +159,10 @@ export class ParticleEngine {
   private scatterContact(palette: number, reflectedSpeed: number, amount: number) {
     const { x, y, nx, ny } = this.headContact
     const angle = Math.atan2(ny, nx)
+    const spreadStep = 0.96 / Math.max(3, Math.ceil((amount - 1) / 2))
     for (let i = 0; i < amount && this.contactStars < 96; i++) {
       const spread = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? -1 : 1)
-      const direction = angle + spread * 0.32 + random(-0.09, 0.09)
+      const direction = angle + spread * spreadStep + random(-0.09, 0.09)
       const speed = reflectedSpeed * random(0.68, 1.18)
       const star = this.spawn('contactStar', x + nx * 2.5, y + ny * 2.5,
         Math.cos(direction) * speed, Math.sin(direction) * speed,
@@ -400,7 +401,8 @@ export class ParticleEngine {
           const speed = Math.max(66, Math.min(144, Math.hypot(p.vx - head.vx, p.vy - head.vy) * 0.46))
           this.impacts++
           this.remove(i)
-          this.scatterContact(palette, speed, kind === 'ray' ? (quality.rayScale < 1 ? 5 : 7) : 2)
+          const starShare = kind === 'ray' ? (quality.rayScale < 1 ? 5 / 7 : 1) : 2 / 7
+          this.scatterContact(palette, speed, Math.round(tuning.reboundStarCount * starShare))
           continue
         }
         p.sampleAge += dt
