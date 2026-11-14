@@ -19,6 +19,24 @@ export async function createBodyTracker(signal: AbortSignal) {
   })
 }
 
+export function createPoseInput(video: HTMLVideoElement) {
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d', { alpha: false })
+  return () => {
+    if (!context || !video.videoWidth || !video.videoHeight) return video
+    const scale = Math.min(1, 320 / Math.max(video.videoWidth, video.videoHeight))
+    if (scale === 1) return video
+    const width = Math.max(1, Math.round(video.videoWidth * scale))
+    const height = Math.max(1, Math.round(video.videoHeight * scale))
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width
+      canvas.height = height
+    }
+    context.drawImage(video, 0, 0, width, height)
+    return canvas
+  }
+}
+
 export function projectBody(points: NormalizedLandmark[] | undefined, width: number, height: number,
   video: HTMLVideoElement, mirrored: boolean, head: Ellipse | null): BodyRegion {
   if (!points || !video.videoWidth || !video.videoHeight) return estimateBody(head, height)

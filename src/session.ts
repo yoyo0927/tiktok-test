@@ -9,7 +9,7 @@ import { PerformanceMonitor } from './performance.ts'
 import { Renderer } from './renderer.ts'
 import type { FaceLandmarker } from '@mediapipe/tasks-vision'
 import type { Tuning } from './tuning.ts'
-import { createBodyTracker, projectBody } from './bodyTracking.ts'
+import { createBodyTracker, createPoseInput, projectBody } from './bodyTracking.ts'
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision'
 import { PersonMask } from './personMask.ts'
 
@@ -34,6 +34,7 @@ export function runSession(
   const follower = new HeadFollower()
   const performanceMonitor = new PerformanceMonitor()
   const person = model ? new PersonMask() : null
+  const mobileInput = model && window.matchMedia('(pointer: coarse)').matches ? createPoseInput(video) : null
   let raf = 0
   let lastFrame = 0
   let lastInference = -Infinity
@@ -50,6 +51,7 @@ export function runSession(
   let bodyPoints: NormalizedLandmark[] | undefined
   let lastPose = -Infinity
   let lastPoseVideoTime = -1
+  let poseMs = 0
   let stopped = false
   if (model && signal) {
     void createBodyTracker(signal).then((tracker) => {
@@ -78,10 +80,13 @@ export function runSession(
       const resized = renderer.resize(width, height, settings.dpr)
       let burst = false
       const videoReady = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+      const poseInterval = mobileInput
+        ? Math.min(500, Math.max(performanceMonitor.reduced ? 350 : 250, poseMs * 8))
+        : performanceMonitor.reduced ? 200 : 100
       const poseDue = pose && videoReady && video.currentTime !== lastPoseVideoTime
-        && now - lastPose >= (settings.trackingHz === 18 ? 100 : 200)
+        && now - lastPose >= poseInterval
 
-      if (model && videoReady && (!poseDue || now - lastInference >= 180) && video.currentTime !== lastVideoTime
+      if (model && videoReady && (mobileInput || !poseDue || now - lastInference >= 180) && video.currentTime !== lastVideoTime
         && now - lastInference >= 1000 / settings.trackingHz - 4) {
         lastVideoTime = video.currentTime
         lastInference = now
@@ -100,10 +105,12 @@ export function runSession(
         lastPose = now
         lastPoseVideoTime = video.currentTime
         try {
-          pose.detectForVideo(video, now, (result) => {
+          const start = performance.now()
+          pose.detectForVideo(mobileInput?.() ?? video, now, (result) => {
             bodyPoints = result.landmarks[0]
             person?.update(result.segmentationMasks?.[0])
           })
+          poseMs = performance.now() - start
         } catch (error) {
           console.info('Using estimated body region.', error)
           pose.close()
@@ -121,7 +128,7 @@ export function runSession(
         if (face) target = projectHead(face, width, height, video, mirrored)
       }
       const head = follower.update(target, dt)
-      const freshPose = now - lastPose < 420
+      const freshPose = now - lastPose < Math.max(420, poseInterval + 120)
       const body = projectBody(freshPose ? bodyPoints : undefined, width, height, video, mirrored, head)
       const foreground = freshPose ? person?.project(width, height, video, mirrored) : undefined
       if (burst || pendingPreview && width > 0 && height > 0) {
