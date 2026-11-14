@@ -359,6 +359,7 @@ export class ParticleEngine {
     const sparkDrag = Math.exp(-dt * 1.1)
     const accentDrag = Math.exp(-dt * 1.65)
     const contactDrag = Math.exp(-dt * 3.5)
+    const isOccluded = foreground ?? (body.length ? (x: number, y: number) => bodyClearance(x, y, body) <= 0 : undefined)
     // Walk backwards so newly scattered stars start aging on the next frame.
     for (let i = this.count - 1; i >= 0; i--) {
       const p = this.pool[i]
@@ -393,7 +394,7 @@ export class ParticleEngine {
         p.vy = p.vy * drag + p.gravity * dt
         p.x += p.vx * dt
         p.y += p.vy * dt
-        if (p.collidable && head && collideWithHead(p, px, py, head, this.headContact)) {
+        if (p.collidable && head && collideWithHead(p, px, py, head, this.headContact, isOccluded)) {
           const { palette, kind } = p
           const speed = Math.max(66, Math.min(144, Math.hypot(p.vx - head.vx, p.vy - head.vy) * 0.46))
           this.impacts++

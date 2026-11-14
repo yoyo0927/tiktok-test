@@ -139,7 +139,7 @@ test('collidable spokes and sparks originate at the visible bloom and scatter on
   assert.ok(engine.impacts > 0)
 })
 
-test('an impacting petal emits seven stars at the head edge even when the mask extends past it', () => {
+test('an impacting petal emits seven stars when only the immediate head edge is masked', () => {
   const engine = new ParticleEngine()
   const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
   engine.burst(head, 360, 480, quality.full, defaultTuning)
@@ -148,7 +148,7 @@ test('an impacting petal emits seven stars at the head edge even when the mask e
   Object.assign(petal, { x: 144, y: 160, vx: 350, vy: 0, gravity: 0, radius: 1, tailBurstAt: 0 })
   engine.count = 1
   engine.blooms.length = 0
-  const foreground = (x) => x > 124 && x < 232
+  const foreground = (x) => x > 146 && x < 232
   const update = () => engine.update(1 / 30, 360, 480, 'neutral', head, quality.full, defaultTuning, [], foreground)
   update()
   assert.equal(engine.impacts, 1)
@@ -161,6 +161,26 @@ test('an impacting petal emits seven stars at the head edge even when the mask e
   assert.ok(engine.pool[0].x < start)
   for (let i = 0; i < 17; i++) update()
   assert.equal(engine.count, 0)
+})
+
+test('petals hidden by hair or a shoulder before reaching the head do not register a hit', () => {
+  const head = { x: 180, y: 160, rx: 30, ry: 50, angle: 0, dx: 0, dy: 0, vx: 0, vy: 0, cos: 1, sin: 0 }
+  const shoulder = [{ from: { x: 135, y: 160 }, to: { x: 135, y: 250 }, radius: 15 }]
+  for (const [body, foreground] of [[[], x => x > 138 && x < 232], [shoulder, undefined]]) {
+    const engine = new ParticleEngine()
+    engine.burst(head, 360, 480, quality.full, defaultTuning)
+    const petal = engine.pool[0]
+    Object.assign(petal, { x: 118, y: 160, vx: 1200, vy: 0, gravity: 0, radius: 1 })
+    engine.count = 1
+    engine.blooms.length = 0
+
+    engine.update(1 / 30, 360, 480, 'neutral', head, quality.full, defaultTuning, body, foreground)
+
+    assert.equal(engine.impacts, 0)
+    assert.equal(engine.count, 1)
+    assert.equal(petal.kind, 'ray')
+    assert(petal.x > 150 && petal.vx > 0)
+  }
 })
 
 test('a fading petal spawns a single brief flash at the oldest visible trail sample', () => {

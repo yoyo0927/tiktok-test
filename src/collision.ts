@@ -7,7 +7,8 @@ export interface Body {
 export interface HeadContact { x: number; y: number; nx: number; ny: number }
 
 // Sweep in the moving ellipse's frame so a fast particle cannot cross its boundary unnoticed.
-export function collideWithHead(body: Body, previousX: number, previousY: number, head: MovingHead, contact?: HeadContact): boolean {
+export function collideWithHead(body: Body, previousX: number, previousY: number, head: MovingHead,
+  contact?: HeadContact, isOccluded?: (x: number, y: number) => boolean): boolean {
   const startX = previousX - head.x + head.dx
   const startY = previousY - head.y + head.dy
   const endX = body.x - head.x
@@ -49,11 +50,23 @@ export function collideWithHead(body: Body, previousX: number, previousY: number
   const normalLength = Math.hypot(localNx, localNy)
   const nx = (cos * localNx - sin * localNy) / normalLength
   const ny = (sin * localNx + cos * localNy) / normalLength
-  body.x = head.x + cos * ux * rx - sin * uy * ry + nx * 0.7
-  body.y = head.y + sin * ux * rx + cos * uy * ry + ny * 0.7
+  const boundaryX = head.x + cos * ux * rx - sin * uy * ry
+  const boundaryY = head.y + sin * ux * rx + cos * uy * ry
 
-  const approach = (body.vx - head.vx) * nx + (body.vy - head.vy) * ny
+  const relativeVx = body.vx - head.vx
+  const relativeVy = body.vy - head.vy
+  const approach = relativeVx * nx + relativeVy * ny
   if (approach >= -1) return false
+  if (isOccluded) {
+    const speed = Math.hypot(relativeVx, relativeVy)
+    const vx = relativeVx / speed
+    const vy = relativeVy / speed
+    // Sample the incoming path outside the edge. A little mask overlap at the rim is expected.
+    if (isOccluded(boundaryX - vx * 5, boundaryY - vy * 5)
+      && isOccluded(boundaryX - vx * 9, boundaryY - vy * 9)) return false
+  }
+  body.x = boundaryX + nx * 0.7
+  body.y = boundaryY + ny * 0.7
   const impulse = Math.max(26, -0.78 * approach) - approach
   body.vx += impulse * nx
   body.vy += impulse * ny
