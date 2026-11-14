@@ -45,8 +45,9 @@ export const fireworkColors = [
   { glow: '#505cdf', ray: '#8299ff', tip: '#dce5ff' },
 ]
 const fireworkPairs = [[0, 1], [2, 3], [4, 5], [1, 2], [4, 1]] as const
-const bloomSizes = [1, 0.79, 0.61, 0.46, 0.32]
-const petalCounts = [1, 0.55, 0.42, 0.32, 0.24]
+const landscapePairs = [...fireworkPairs, [0, 2], [3, 5], [0, 4]] as const
+const bloomSizes = [1, 0.79, 0.61, 0.46, 0.32, 0.30, 0.28, 0.26]
+const petalCounts = [1, 0.55, 0.42, 0.32, 0.24, 0.21, 0.18, 0.15]
 const CAPACITY = 780
 const RAIN_CAP = 300
 const TAU = Math.PI * 2
@@ -285,15 +286,18 @@ export class ParticleEngine {
     body = estimateBody(head, height), foreground?: Foreground) {
     const shortSide = Math.min(width, height)
     const radius = shortSide * 0.49 * tuning.fireworkSize / 100
+    const landscape = width > height
+    const palettePairs = landscape ? landscapePairs : fireworkPairs
+    const bloomCount = landscape ? quality.landscapeBlooms : quality.blooms
     const previous = this.lastPair
-    const pairs = fireworkPairs.map((_, i) => i)
+    const pairs = palettePairs.map((_, i) => i)
     const mainPairs = pairs.filter((i) => i !== previous)
     const mainPair = mainPairs[Math.floor(random(0, mainPairs.length))]
     pairs.splice(mainPair, 1)
     this.lastPair = mainPair
-    for (let order = 0; order < quality.blooms; order++) {
+    for (let order = 0; order < bloomCount; order++) {
       const pair = order === 0 ? mainPair : pairs.splice(Math.floor(random(0, pairs.length)), 1)[0]
-      const colors = fireworkPairs[pair]
+      const colors = palettePairs[pair]
       const origin = chooseOrigin(width, height, head, body, this.blooms, this.lastOrigin, foreground)
       if (!origin) break
       const bloom = { ...origin, radius: radius * bloomSizes[order], order,

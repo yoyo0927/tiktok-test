@@ -1,6 +1,6 @@
 export const quality = {
-  full: { trackingHz: 18, rainScale: 1, rayScale: 1, blooms: 5, sparks: 30, accents: 12, trailScale: 1, dpr: 1.75 },
-  reduced: { trackingHz: 12, rainScale: 0.65, rayScale: 0.68, blooms: 4, sparks: 14, accents: 7, trailScale: 0.70, dpr: 1.25 },
+  full: { trackingHz: 18, rainScale: 1, rayScale: 1, blooms: 5, landscapeBlooms: 8, sparks: 30, accents: 12, trailScale: 1, dpr: 1.75 },
+  reduced: { trackingHz: 12, rainScale: 0.65, rayScale: 0.68, blooms: 4, landscapeBlooms: 6, sparks: 14, accents: 7, trailScale: 0.70, dpr: 1.25 },
 }
 export type Quality = (typeof quality)[keyof typeof quality]
 

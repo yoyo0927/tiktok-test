@@ -219,6 +219,32 @@ test('each wave uses different two-color blooms of several sizes and launches st
   assert.equal(positions.size, 7)
 })
 
+test('wider stages add three full-quality blooms or two reduced-quality blooms', () => {
+  for (const [settings, landscapeCount, portraitCount] of [[quality.full, 8, 5], [quality.reduced, 6, 4]]) {
+    for (const [width, height, expectedCount] of [[1392, 772, landscapeCount], [452, 804, portraitCount]]) {
+      const engine = new ParticleEngine()
+      engine.burst(null, width, height, settings, defaultTuning)
+
+      const blooms = [...engine.blooms]
+      assert.equal(blooms.length, expectedCount)
+      const pairs = blooms.map(({ palette, accentPalette }) => [palette, accentPalette].sort().join(','))
+      assert.equal(new Set(pairs).size, expectedCount)
+      assert.ok(blooms.every((bloom, index) => index === 0 || bloom.radius < blooms[index - 1].radius))
+
+      let emitted = 0
+      for (let frame = 0; frame <= 42; frame++) {
+        while (emitted < blooms.length && blooms[emitted].delay <= 0) {
+          const { x, y } = blooms[emitted++]
+          assert.ok(engine.pool.slice(0, engine.count).some(particle => particle.kind === 'ray'
+            && Math.abs(particle.history[0] - x) < 0.001 && Math.abs(particle.history[1] - y) < 0.001))
+        }
+        engine.update(1 / 60, width, height, 'laugh', null, settings, defaultTuning)
+      }
+      assert.equal(emitted, expectedCount)
+    }
+  }
+})
+
 test('star rain goes fully transparent until fireworks and their tail flashes finish', () => {
   const engine = new ParticleEngine()
   const step = (state, frames) => {
