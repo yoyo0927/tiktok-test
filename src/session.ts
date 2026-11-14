@@ -5,7 +5,7 @@ import type { FaceFrame } from './faceTracking.ts'
 import { HeadFollower } from './geometry.ts'
 import type { Ellipse } from './geometry.ts'
 import { ParticleEngine } from './particles.ts'
-import { PerformanceMonitor } from './performance.ts'
+import { MobileTrackingBudget, PerformanceMonitor, mobileOverlayScale } from './performance.ts'
 import { Renderer } from './renderer.ts'
 import type { FaceLandmarker } from '@mediapipe/tasks-vision'
 import type { Tuning } from './tuning.ts'
@@ -16,11 +16,13 @@ import { PersonMask } from './personMask.ts'
 export interface Telemetry {
   state: Expression; tracking: boolean; fps: number; reduced: boolean; particles: number;
   impacts: number; smile: number; open: number; laugh: number; inferenceMs: number; trackingHz: number
+  poseMs: number | null; posePaused: boolean
 }
 
 export const initialTelemetry: Telemetry = {
   state: 'neutral', tracking: false, fps: 0, reduced: false, particles: 0, impacts: 0,
   smile: 0, open: 0, laugh: 0, inferenceMs: 0, trackingHz: 18,
+  poseMs: null, posePaused: false,
 }
 
 export function runSession(
@@ -35,6 +37,7 @@ export function runSession(
   const performanceMonitor = new PerformanceMonitor()
   const person = model ? new PersonMask() : null
   const mobileInput = model && window.matchMedia('(pointer: coarse)').matches ? createPoseInput(video) : null
+  const mobileBudget = mobileInput ? new MobileTrackingBudget() : null
   let raf = 0
   let lastFrame = 0
   let lastInference = -Infinity
@@ -51,7 +54,7 @@ export function runSession(
   let bodyPoints: NormalizedLandmark[] | undefined
   let lastPose = -Infinity
   let lastPoseVideoTime = -1
-  let poseMs = 0
+  let poseMs: number | null = null
   let stopped = false
   if (model && signal) {
     void createBodyTracker(signal).then((tracker) => {
@@ -77,22 +80,25 @@ export function runSession(
       const dt = Math.min(elapsed, 0.05)
       const settings = performanceMonitor.settings
       const tuning = getTuning()
-      const resized = renderer.resize(width, height, settings.dpr)
+      const overlayScale = mobileBudget ? mobileOverlayScale(width, height, performanceMonitor.reduced) : settings.dpr
+      const resized = renderer.resize(width, height, overlayScale)
       let burst = false
       const videoReady = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-      const poseInterval = mobileInput
-        ? Math.min(500, Math.max(performanceMonitor.reduced ? 350 : 250, poseMs * 8))
+      const faceInterval = mobileBudget?.faceInterval(settings.trackingHz) ?? 1000 / settings.trackingHz
+      const poseInterval = mobileBudget
+        ? Math.min(500, Math.max(performanceMonitor.reduced ? 350 : 250, mobileBudget.poseMs * 8))
         : performanceMonitor.reduced ? 200 : 100
       const poseDue = pose && videoReady && video.currentTime !== lastPoseVideoTime
         && now - lastPose >= poseInterval
 
       if (model && videoReady && (mobileInput || !poseDue || now - lastInference >= 180) && video.currentTime !== lastVideoTime
-        && now - lastInference >= 1000 / settings.trackingHz - 4) {
+        && now - lastInference >= faceInterval - 4) {
         lastVideoTime = video.currentTime
         lastInference = now
         const start = performance.now()
         const result = trackFace(model, video, now)
         inferenceMs = performance.now() - start
+        mobileBudget?.recordFace(inferenceMs)
         if (result) {
           face = result
           lastFace = now
@@ -111,8 +117,15 @@ export function runSession(
             person?.update(result.segmentationMasks?.[0])
           })
           poseMs = performance.now() - start
+          mobileBudget?.recordPose(poseMs)
         } catch (error) {
           console.info('Using estimated body region.', error)
+          pose.close()
+          pose = null
+          bodyPoints = undefined
+          person?.update()
+        }
+        if (pose && mobileBudget?.posePaused) {
           pose.close()
           pose = null
           bodyPoints = undefined
@@ -148,7 +161,8 @@ export function runSession(
           state: expression.state, tracking: Boolean(head), fps: performanceMonitor.fps,
           reduced: performanceMonitor.reduced, particles: engine.count, impacts: engine.impacts,
           smile: expression.smile, open: expression.open, laugh: expression.laugh,
-          inferenceMs, trackingHz: settings.trackingHz,
+          inferenceMs, trackingHz: Math.round(1000 / faceInterval),
+          poseMs, posePaused: mobileBudget?.posePaused ?? false,
         })
       }
       raf = requestAnimationFrame(frame)

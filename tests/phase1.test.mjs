@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { ExpressionMachine } from '../src/expression.ts'
 import { collideWithHead } from '../src/collision.ts'
 import { coverProjection } from '../src/geometry.ts'
-import { PerformanceMonitor, quality } from '../src/performance.ts'
+import { MobileTrackingBudget, PerformanceMonitor, mobileOverlayScale, quality } from '../src/performance.ts'
 import { ParticleEngine } from '../src/particles.ts'
 import { defaultTuning } from '../src/tuning.ts'
 import { bodyClearance } from '../src/bodyRegion.ts'
@@ -84,6 +84,27 @@ test('quality drops under sustained low FPS and recovers with a longer delay', (
   assert.equal(monitor.settings, quality.reduced)
   for (let i = 0; i < 260; i++) monitor.sample(1 / 60)
   assert.equal(monitor.settings, quality.full)
+})
+
+test('mobile tracking spaces out costly face frames and pauses repeatedly slow segmentation', () => {
+  const budget = new MobileTrackingBudget()
+  assert.equal(budget.faceInterval(18), 1000 / 18)
+  for (let i = 0; i < 12; i++) budget.recordFace(27)
+  assert.equal(budget.faceInterval(18), 100)
+  for (let i = 0; i < 12; i++) budget.recordFace(4)
+  assert.equal(budget.faceInterval(18), 1000 / 18)
+
+  for (const ms of [28, 30, 12, 26, 25]) budget.recordPose(ms)
+  assert.equal(budget.posePaused, false)
+  budget.recordPose(30)
+  assert.equal(budget.posePaused, true)
+})
+
+test('mobile camera limits portrait overlay pixels without shrinking the stage', () => {
+  assert.equal(mobileOverlayScale(390, 460, false), 1)
+  const portraitArea = 412 * 732
+  assert.ok(Math.abs(portraitArea * mobileOverlayScale(412, 732, false) ** 2 - 260_000) < 1)
+  assert.ok(Math.abs(portraitArea * mobileOverlayScale(412, 732, true) ** 2 - 180_000) < 1)
 })
 
 test('a smaller opening with raised mouth corners can trigger a laugh, and sensitivity changes the threshold', () => {

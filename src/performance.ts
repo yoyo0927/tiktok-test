@@ -4,6 +4,32 @@ export const quality = {
 }
 export type Quality = (typeof quality)[keyof typeof quality]
 
+export function mobileOverlayScale(width: number, height: number, reduced: boolean) {
+  const pixelBudget = reduced ? 180_000 : 260_000
+  return Math.min(1, Math.sqrt(pixelBudget / Math.max(1, width * height)))
+}
+
+export class MobileTrackingBudget {
+  private faceCost = 0
+  private slowPoseSamples = 0
+  poseMs = 0
+
+  get posePaused() { return this.slowPoseSamples >= 3 }
+
+  recordFace(ms: number) {
+    this.faceCost += (ms - this.faceCost) * 0.25
+  }
+
+  recordPose(ms: number) {
+    this.poseMs = ms
+    this.slowPoseSamples = ms >= 24 ? this.slowPoseSamples + 1 : 0
+  }
+
+  faceInterval(trackingHz: number) {
+    return Math.max(1000 / trackingHz, Math.min(100, this.faceCost * 4.5))
+  }
+}
+
 export class PerformanceMonitor {
   fps = 0
   reduced = false

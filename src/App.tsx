@@ -200,8 +200,9 @@ export function App() {
             <div><dt>粒子</dt><dd>{telemetry.particles}</dd></div>
             <div><dt>碰撞</dt><dd>{telemetry.impacts}</dd></div>
             <div><dt>降级</dt><dd>{telemetry.reduced ? '开启' : '关闭'}</dd></div>
-            <div><dt>推理</dt><dd>{running ? `${telemetry.inferenceMs.toFixed(1)} ms` : '—'}</dd></div>
-            <div><dt>推理上限</dt><dd>{running ? `${telemetry.trackingHz} Hz` : '—'}</dd></div>
+            <div><dt>人脸推理</dt><dd>{running ? `${telemetry.inferenceMs.toFixed(1)} ms` : '—'}</dd></div>
+            <div><dt>人脸推理上限</dt><dd>{running ? `${telemetry.trackingHz} Hz` : '—'}</dd></div>
+            <div><dt>人体分割</dt><dd>{telemetry.posePaused ? '已简化' : telemetry.poseMs === null ? '—' : `${telemetry.poseMs.toFixed(1)} ms`}</dd></div>
           </dl>
         </section>
         <EffectControls tuning={tuning} onChange={changeTuning} />
