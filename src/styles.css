@@ -89,6 +89,9 @@ h1 span { color: #ff76bf; font-size: 0.6em; margin-left: 8px; vertical-align: mi
 .slider input:focus-visible { outline: 2px solid #61ffdd; outline-offset: 3px; }
 
 @media (min-width: 800px) {
+  .shell[data-portrait="false"] { width: min(100% - 48px, 1800px); }
+  .shell[data-portrait="false"] .stage { height: clamp(300px, 100svh - 128px, 1080px); }
+
   .shell[data-portrait="true"][data-debug="true"] {
     display: grid;
     grid-template-columns: min(39%, 390px) minmax(0, 1fr);
