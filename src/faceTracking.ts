@@ -2,6 +2,7 @@ import type { FaceLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision
 import { coverProjection } from './geometry.ts'
 import type { Ellipse, Point } from './geometry.ts'
 import type { Scores } from './expression.ts'
+import { downloadModel } from './modelDownload.ts'
 
 export interface FaceFrame {
   scores: Scores
@@ -14,12 +15,10 @@ export interface FaceFrame {
 export async function createTracker(signal: AbortSignal) {
   const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision')
   const assets = `${import.meta.env.BASE_URL}vision/`
-  const [vision, response] = await Promise.all([
+  const [vision, modelAssetBuffer] = await Promise.all([
     FilesetResolver.forVisionTasks(`${assets}wasm`),
-    fetch(`${assets}face_landmarker.task`, { signal }),
+    downloadModel(`${assets}face_landmarker.task`, signal),
   ])
-  if (!response.ok) throw new Error(`Model HTTP ${response.status}`)
-  const modelAssetBuffer = new Uint8Array(await response.arrayBuffer())
   const create = (delegate: 'GPU' | 'CPU') => FaceLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetBuffer, delegate },
     runningMode: 'VIDEO',

@@ -8,6 +8,7 @@ import type { Tuning } from './tuning.ts'
 
 type Status = 'idle' | 'permission' | 'loading' | 'running' | 'error'
 const stateLabels = { neutral: '自然', smile: '微笑', laugh: '大笑' }
+const trackingTimeout = '人脸追踪加载超时。请检查网络后重试，也可在调试模式试放特效。'
 
 export function App() {
   const video = useRef<HTMLVideoElement>(null)
@@ -78,7 +79,13 @@ export function App() {
       cameraReady = true
       setMirrored(options.mirrored)
       setStatus('loading')
-      const { model } = await createTracker(signal)
+      const deadline = window.setTimeout(() => fail(trackingTimeout), 120_000)
+      const clearDeadline = () => window.clearTimeout(deadline)
+      signal.addEventListener('abort', clearDeadline, { once: true })
+      const { model } = await createTracker(signal).finally(() => {
+        clearDeadline()
+        signal.removeEventListener('abort', clearDeadline)
+      })
       if (signal.aborted) {
         model.close()
         return
@@ -96,7 +103,8 @@ export function App() {
     } catch (error) {
       if (signal.aborted) return
       if (cameraReady) console.error('Could not start face tracking.', error)
-      fail(cameraReady ? '人脸追踪启动失败。请检查网络并重试，或使用新版 Chrome、Edge 或 Safari。' : cameraError(error))
+      if (cameraReady && error instanceof DOMException && error.name === 'TimeoutError') fail(trackingTimeout)
+      else fail(cameraReady ? '人脸追踪启动失败。请检查网络并重试，或使用新版 Chrome、Edge 或 Safari。' : cameraError(error))
     }
   }
 

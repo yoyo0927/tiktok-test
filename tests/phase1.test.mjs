@@ -7,6 +7,7 @@ import { MobileTrackingBudget, PerformanceMonitor, mobileOverlayScale, quality }
 import { ParticleEngine } from '../src/particles.ts'
 import { defaultTuning } from '../src/tuning.ts'
 import { bodyClearance } from '../src/bodyRegion.ts'
+import { downloadModel } from '../src/modelDownload.ts'
 
 test('expressions confirm transitions and pace repeated bursts during sustained laughter', () => {
   const machine = new ExpressionMachine()
@@ -84,6 +85,59 @@ test('quality drops under sustained low FPS and recovers with a longer delay', (
   assert.equal(monitor.settings, quality.reduced)
   for (let i = 0; i < 260; i++) monitor.sample(1 / 60)
   assert.equal(monitor.settings, quality.full)
+})
+
+test('a failed quality recovery waits longer before trying again', () => {
+  const monitor = new PerformanceMonitor()
+  const switches = []
+  let wasReduced = false
+  for (let elapsed = 0; elapsed < 30;) {
+    const dt = 1 / (monitor.reduced ? 60 : 40)
+    elapsed += dt
+    monitor.sample(dt)
+    if (monitor.reduced !== wasReduced) {
+      switches.push(Math.round(elapsed))
+      wasReduced = monitor.reduced
+    }
+  }
+  assert.deepEqual(switches, [2, 6, 8])
+  for (let i = 0; i < 1500; i++) monitor.sample(1 / 60)
+  assert.equal(monitor.settings, quality.full)
+  for (let i = 0; i < 1500; i++) monitor.sample(1 / 60)
+  for (let i = 0; i < 90; i++) monitor.sample(1 / 40)
+  assert.equal(monitor.settings, quality.reduced)
+  for (let i = 0; i < 260; i++) monitor.sample(1 / 60)
+  assert.equal(monitor.settings, quality.full)
+})
+
+test('model downloads allow slow progress and cancel once the body stalls', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let stream
+  let cancelled
+  t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({
+    start(controller) { stream = controller },
+    cancel(reason) { cancelled = reason },
+  })))
+  const signal = new AbortController().signal
+  const tick = () => new Promise(resolve => setImmediate(resolve))
+  const success = downloadModel('/model', signal, 100)
+  await tick()
+  for (let i = 1; i <= 4; i++) {
+    t.mock.timers.tick(80)
+    stream.enqueue(Uint8Array.of(i))
+    await tick()
+  }
+  stream.close()
+  assert.deepEqual(await success, Uint8Array.of(1, 2, 3, 4))
+
+  const failure = assert.rejects(downloadModel('/model', signal, 100), { name: 'TimeoutError' })
+  await tick()
+  stream.enqueue(Uint8Array.of(1))
+  await tick()
+  t.mock.timers.tick(100)
+  await failure
+  await tick()
+  assert.equal(cancelled?.name, 'TimeoutError')
 })
 
 test('mobile tracking spaces out costly face frames and pauses repeatedly slow segmentation', () => {

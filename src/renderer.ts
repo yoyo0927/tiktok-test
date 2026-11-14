@@ -261,6 +261,7 @@ export class Renderer {
   width = 0
   height = 0
   private dpr = 0
+  private hasDrawn = true
   private ctx: CanvasRenderingContext2D
   private ribbon = new FireworkRibbon()
   private rainGlows = rainColors.map((color) => glowSprite(color))
@@ -289,6 +290,14 @@ export class Renderer {
   draw(engine: ParticleEngine, head: MovingHead | null, debug: boolean, quality: Quality, tuning: Tuning,
     body: BodyRegion, person: PersonMask | null, video: HTMLVideoElement, mirrored: boolean, useHeadSilhouette = false) {
     const ctx = this.ctx
+    const hasEffects = engine.count > 0 || engine.blooms.length > 0
+    const hasDebug = debug && head !== null
+    if (!hasEffects && !hasDebug) {
+      if (this.hasDrawn) ctx.clearRect(0, 0, this.width, this.height)
+      this.hasDrawn = false
+      return
+    }
+    this.hasDrawn = true
     ctx.clearRect(0, 0, this.width, this.height)
     ctx.lineCap = 'round'
     for (let i = 0; engine.rainVisibility > 0 && i < engine.count; i++) {
@@ -404,7 +413,6 @@ export class Renderer {
       if (p.kind === 'streamer') drawStreamer(ctx, p)
       else if (p.kind === 'shape') drawShape(ctx, p)
     }
-    const hasEffects = engine.count > 0 || engine.blooms.length > 0
     if (hasEffects && !useHeadSilhouette) {
       if (!person?.erase(ctx, this.width, this.height, video, mirrored)) clearEstimatedBody(ctx, body)
       if (head) clearFace(ctx, head)

@@ -37,6 +37,8 @@ export class PerformanceMonitor {
   private frames = 0
   private low = 0
   private high = 0
+  private healthyFull = 0
+  private recoveryWindows = 4
 
   get settings() { return this.reduced ? quality.reduced : quality.full }
 
@@ -46,9 +48,21 @@ export class PerformanceMonitor {
     if (this.elapsed < 1) return
     this.fps = Math.round(this.frames / this.elapsed)
     this.frames = this.elapsed = 0
+    if (this.reduced) {
+      this.high = this.fps >= 55 ? this.high + 1 : 0
+      if (this.high >= this.recoveryWindows) {
+        this.reduced = false
+        this.high = 0
+        this.recoveryWindows = Math.min(64, this.recoveryWindows * 6)
+      }
+      return
+    }
+    this.healthyFull = this.fps >= 55 ? this.healthyFull + 1 : 0
+    if (this.healthyFull >= 12) this.recoveryWindows = 4
     this.low = this.fps < 46 ? this.low + 1 : 0
-    this.high = this.fps >= 55 ? this.high + 1 : 0
-    if (this.low >= 2) this.reduced = true
-    if (this.high >= 4) this.reduced = false
+    if (this.low >= 2) {
+      this.reduced = true
+      this.low = 0
+    }
   }
 }

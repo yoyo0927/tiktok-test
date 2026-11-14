@@ -3,16 +3,15 @@ import type { Capsule, BodyRegion } from './bodyRegion.ts'
 import { estimateBody } from './bodyRegion.ts'
 import { coverProjection } from './geometry.ts'
 import type { Ellipse } from './geometry.ts'
+import { downloadModel } from './modelDownload.ts'
 
 export async function createBodyTracker(signal: AbortSignal) {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision')
   const assets = `${import.meta.env.BASE_URL}vision/`
-  const [vision, response] = await Promise.all([
+  const [vision, modelAssetBuffer] = await Promise.all([
     FilesetResolver.forVisionTasks(`${assets}wasm`),
-    fetch(`${assets}pose_landmarker_lite.task`, { signal }),
+    downloadModel(`${assets}pose_landmarker_lite.task`, signal),
   ])
-  if (!response.ok) throw new Error(`Pose model HTTP ${response.status}`)
-  const modelAssetBuffer = new Uint8Array(await response.arrayBuffer())
   signal.throwIfAborted()
   return PoseLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetBuffer, delegate: 'CPU' }, runningMode: 'VIDEO', numPoses: 1, outputSegmentationMasks: true,
